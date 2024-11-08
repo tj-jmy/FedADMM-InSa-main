@@ -1,6 +1,8 @@
 import copy
 import torch
 import numpy as np
+from numpy.ma.core import zeros_like
+
 from utils.model import init_model
 
 
@@ -25,6 +27,15 @@ class Server(object):
         model_z = copy.deepcopy(model_u[0])  # init model_server_new # 初始化聚合后的服务器模型
         m = len(model_u)  # number of clients to aggregate # 要聚合的客户端数量
         # Iterate over model layers for aggregation.
+
+        theta_m = copy.deepcopy(model_u)
+        for i in range(m):
+            for key in theta_m[i].keys():
+                theta_m[i][key] = torch.zeros_like(theta_m[i][key])
+        theta_mean , theta_std = [], []
+
+        sigma=0.1
+
         # 遍历模型的每一层，进行参数聚合
         for key in model_z.keys():
             model_z[key].zero_()  # reset model parameters # 重置模型参数
@@ -41,8 +52,10 @@ class Server(object):
                         # model_z[key] += alpha[i] * (beta[i] * model_u[i][key] - lamda[i][key])
                         # model_z[key] += alpha[i] * (beta[i] * model_u[i][key] + lamda[i][key])
                         model_z[key] += (beta[i] * model_u[i][key] + lamda[i][key])
+                        theta_m[i][key] = (beta[i] * model_u[i][key] + lamda[i][key])
                     # tmp = [alpha[i] * beta[i] for i in range(m)]
                     tmp = [beta[i] for i in range(m)]
+                    sigma = sum(tmp)
                     model_z[key] = torch.div(model_z[key], sum(tmp))
                 # FedAvg server aggregation. # 对于 FedAvg 算法的聚合过程
                 elif self.cfg.alg in ["fedavg"]:
@@ -53,6 +66,23 @@ class Server(object):
         # Server aggregation with memory  # 如果是 加权ADMM 算法，进行带记忆的聚合，先直接聚合，再和上一轮的全局模型加权聚合
         if self.cfg.alg in ["admm_in", "admm_insa"]:
             model_z = self._admm_memory(model_z)
+
+        for i in range(m):
+            theta_mean .append(torch.mean(torch.cat([param.view(-1) for param in theta_m[i].values()])))
+            theta_std.append(torch.std(torch.cat([param.view(-1) for param in theta_m[i].values()])))
+
+        noise=copy.deepcopy(model_z)
+        for idx, key in enumerate(noise.keys()):
+            noise[key].zero_()
+            for i in range(m):
+                noise[key] += (self.fh_hmul_pm[i].real - theta_std[i]) * (theta_m[i][key] - theta_mean[i]) / theta_std[i]
+            noise[key] = torch.div(noise[key], sigma)
+
+            noise[key] += self.fh_nul[idx].real
+            
+        for key in model_z.keys():
+            model_z[key] += noise[key]
+
         # 更新服务器的模型
         self.model.load_state_dict(model_z)  # update server's model
 
@@ -67,3 +97,7 @@ class Server(object):
             model[key].zero_()  # reset model parameters # 重置模型参数
             model[key] = cof1 * model_new[key] + cof2 * self.state[key] # 带记忆的聚合：综合当前和上轮模型的参数
         return model
+
+    def load_noise_args(self, fh_hmul_pm, fh_nul):
+        self.fh_hmul_pm = fh_hmul_pm
+        self.fh_nul = fh_nul

@@ -18,12 +18,14 @@ def main(cfg):
     server = Server(cfg)  # Initialize the server.
     clients = Clients(cfg, server.model, dataset)  # Initialize clients.
 
-    fh_hmul_pm = torch.zeros(cfg.m, 1, dtype=torch.complex64)
+    fh_hmul_pm = torch.zeros(cfg.m, 1, dtype=torch.complex64).to(cfg.device)
 
-    fh_nul=[torch.zeros(p.shape, dtype=torch.complex64) for p in server.model.parameters()]
+    fh_nul=[torch.zeros(p.shape, dtype=torch.complex64).to(cfg.device) for p in server.model.parameters()]
 
     print(fh_hmul_pm.shape)
     print(fh_nul[0].shape)
+
+    server.load_noise_args(fh_hmul_pm, fh_nul)
 
     # Start FL training.
     FL_train(cfg, server, clients, dataset)

@@ -61,6 +61,7 @@ class Server(object):
                 elif self.cfg.alg in ["fedavg"]:
                     for i in range(m):  # iterate over clients
                         model_z[key] += alpha[i] * model_u[i][key]
+                        theta_m[i][key] = model_u[i][key]
                 else:
                     raise ValueError(f"Invalid algorithm.")
         # Server aggregation with memory  # 如果是 加权ADMM 算法，进行带记忆的聚合，先直接聚合，再和上一轮的全局模型加权聚合
@@ -76,9 +77,9 @@ class Server(object):
             noise[key].zero_()
             for i in range(m):
                 noise[key] += (self.fh_hmul_pm[i].real - theta_std[i]) * (theta_m[i][key] - theta_mean[i]) / theta_std[i]
-            noise[key] = torch.div(noise[key], sigma)
 
             noise[key] += self.fh_nul[idx].real
+            noise[key] = torch.div(noise[key], sigma)
             
         for key in model_z.keys():
             model_z[key] += noise[key]

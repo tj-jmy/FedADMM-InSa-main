@@ -46,8 +46,8 @@ if __name__ == "__main__":
     fh_hmul_pm_list = [torch.rand(cfg.m, 1, dtype=torch.complex64).to(cfg.device) for _ in range(len(alg_list))]
     fh_nul_list = [torch.rand(param_size, dtype=torch.complex64).to(cfg.device) for _ in range(len(alg_list))]
 
-    fh_hmul_pm_list = loadmat('param.mat')['fh_hmul_pm']
-    fh_nul_list = loadmat('param.mat')['fh_nul']
+    # fh_hmul_pm_list = loadmat('param.mat')['fh_hmul_pm']
+    # fh_nul_list = loadmat('param.mat')['fh_nul']
 
     with Progress() as progress:  # progress bar
         task = progress.add_task("[green]Main loop:", total=1)  # main loop bar

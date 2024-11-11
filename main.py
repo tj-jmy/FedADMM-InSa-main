@@ -1,3 +1,4 @@
+import pylab as p
 import torch
 
 from fedlearn.federate import FL_train
@@ -8,8 +9,10 @@ from utils.dataset import init_dataset
 from utils.args import args_parser
 from utils.utils import load_config, set_seed
 
+from utils.model import init_model
 
-def main(cfg, alg):
+
+def main(cfg, alg, fh_hmul_pm, fh_nul):
     # Setup the random seed.
     set_seed(cfg.seed)
 
@@ -17,14 +20,6 @@ def main(cfg, alg):
     dataset = init_dataset(cfg)  # Initialize datasets.
     server = Server(cfg, alg)  # Initialize the server.
     clients = Clients(cfg, server.model, dataset, alg)  # Initialize clients.
-
-    fh_hmul_pm = torch.zeros(cfg.m, 1, dtype=torch.complex64).to(cfg.device)
-
-    fh_nul = [torch.zeros(p.shape, dtype=torch.complex64).to(
-        cfg.device) for p in server.model.parameters()]
-
-    print(fh_hmul_pm.shape)
-    print(fh_nul[0].shape)
 
     server.load_noise_args(fh_hmul_pm, fh_nul)
 
@@ -40,11 +35,19 @@ if __name__ == "__main__":
     # Load the configuration from "./utils/config.yaml".
     cfg = load_config(arg)
 
-    alg_list = cfg.alg
+    alg_list = ["fedavg", "admm_insa", "admm_in", "admm"]
+
+    model = init_model(cfg)
+    param_size = sum(p.numel() for p in model.parameters())
+    print(f"Model size: {param_size}")  # 878538
+
+    fh_hmul_pm_list = [torch.rand(cfg.m, 1, dtype=torch.complex64).to(cfg.device) for _ in range(len(alg_list))]
+
+    fh_nul_list = [torch.rand(param_size, dtype=torch.complex64).to(cfg.device) for _ in range(len(alg_list))]
 
     with Progress() as progress:  # progress bar
         task = progress.add_task("[green]Main loop:", total=1)  # main loop bar
         cfg.progress = progress  # for the sub inner loop
-        for alg in alg_list:
-            main(cfg, alg)
+        for i in range(len(alg_list)):
+            main(cfg, alg_list[i], fh_hmul_pm_list[i], fh_nul_list[i])
         progress.update(task, advance=1)

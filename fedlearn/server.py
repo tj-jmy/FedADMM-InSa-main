@@ -1,6 +1,7 @@
 import copy
 import torch
 import numpy as np
+from PIL.ImageChops import offset
 from numpy.ma.core import zeros_like
 
 from utils.model import init_model
@@ -76,12 +77,19 @@ class Server(object):
             theta_std.append(torch.std(torch.cat([param.view(-1) for param in theta_m[i].values()])))
 
         noise=copy.deepcopy(model_z)
-        for idx, key in enumerate(noise.keys()):
+
+        offset=0
+
+        for key in noise.keys():
             noise[key].zero_()
             for i in range(m):
                 noise[key] += (self.fh_hmul_pm[i].real - theta_std[i]) * (theta_m[i][key] - theta_mean[i]) / theta_std[i]
 
-            noise[key] += self.fh_nul[idx].real
+            # noise[key] += self.fh_nul[idx].real
+            numel = noise[key].numel()
+            noise[key] += self.fh_nul[offset:offset+numel].real.reshape(noise[key].shape)
+            offset += numel
+
             noise[key] = torch.div(noise[key], sigma)
             
         for key in model_z.keys():

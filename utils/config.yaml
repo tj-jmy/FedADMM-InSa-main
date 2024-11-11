@@ -10,6 +10,7 @@ tag0: F # parent folder tag for logging
 dataset: cifar10 # mnist or linreg or cifar10 or tinyimagenet
 subset: 0 # use a subset of the whole dataset
 iid: 0 # data distribution
+num_classes: 10 # number of classes
 
 # model
 model: cnn

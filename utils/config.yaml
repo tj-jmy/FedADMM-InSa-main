@@ -1,7 +1,7 @@
 # FL scenario
 m: 8 # number of the clients
 K: 100 # number of the rounds
-alg: admm # fedavg or admm_insa or admm_in or admm
+alg: [fedavg, admm_insa, admm_in, admm] # 将alg变为列表
 seed: 123
 tag: FF # tag for logging
 tag0: F # parent folder tag for logging

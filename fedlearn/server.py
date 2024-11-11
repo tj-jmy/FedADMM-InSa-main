@@ -9,10 +9,13 @@ from utils.model import init_model
 class Server(object):
     """Server side operations."""
 
-    def __init__(self, cfg):
+    def __init__(self, cfg,alg):
         self.cfg = cfg
         self.model = init_model(cfg)  # model z_k # 初始化服务器模型 z_k
         self.state = self.model.state_dict()  # state z_k # 保存模型参数状态 z_k
+        self.alg = alg
+        self.fh_hmul_pm = None
+        self.fh_nul = None
 
     def select_clients(self, frac):
         """Randomly select a subset of clients."""
@@ -46,7 +49,7 @@ class Server(object):
                     model_z[key] += alpha[i] * model_u[i][key]
             else:  # for other layers # 其他层的参数聚合
                 # FedADMM server aggregation. # 对于 FedADMM 算法的聚合过程
-                if self.cfg.alg in ["admm", "admm_in", "admm_insa"]:
+                if self.alg in ["admm", "admm_in", "admm_insa"]:
                     beta, lamda = res_clients["beta"], res_clients["lambda"]
                     for i in range(m):  # iterate over clients
                         # model_z[key] += alpha[i] * (beta[i] * model_u[i][key] - lamda[i][key])
@@ -58,14 +61,14 @@ class Server(object):
                     sigma = sum(tmp)
                     model_z[key] = torch.div(model_z[key], sum(tmp))
                 # FedAvg server aggregation. # 对于 FedAvg 算法的聚合过程
-                elif self.cfg.alg in ["fedavg"]:
+                elif self.alg in ["fedavg"]:
                     for i in range(m):  # iterate over clients
                         model_z[key] += alpha[i] * model_u[i][key]
                         theta_m[i][key] = model_u[i][key]
                 else:
                     raise ValueError(f"Invalid algorithm.")
         # Server aggregation with memory  # 如果是 加权ADMM 算法，进行带记忆的聚合，先直接聚合，再和上一轮的全局模型加权聚合
-        if self.cfg.alg in ["admm_in", "admm_insa"]:
+        if self.alg in ["admm_in", "admm_insa"]:
             model_z = self._admm_memory(model_z)
 
         for i in range(m):

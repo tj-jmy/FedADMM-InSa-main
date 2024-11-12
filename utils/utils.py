@@ -78,7 +78,7 @@ def create_folder(cfg, dir_parent="results", prefix="test_", postfix=""):
     return dir_results
 
 
-def plot_res(cfg, data_path):
+def plot_res(cfg, data_path,alg):
     # figure formats
     label_font = FontProperties(family="sans-serif", weight="normal", size=12)
     data_dir = os.path.split(data_path)[0]
@@ -119,7 +119,7 @@ def plot_res(cfg, data_path):
         plt.savefig(f"{data_dir}/res_accu.jpg", bbox_inches="tight")
         plt.close()
 
-        if "admm" in cfg.alg:
+        if "admm" in alg:
             # plot average beta
             fig = plt.figure(dpi=100)
             data_beta = np.average(data["beta"], axis=0)

@@ -23,10 +23,18 @@ def main(cfg, alg, fh_hmul_pm, fh_nul):
     server = Server(cfg, alg)  # Initialize the server.
     clients = Clients(cfg, server.model, dataset, alg)  # Initialize clients.
 
+    # reshape fh_nul
+    fh_nul_reshape, offset = [], 0
+    for param in server.model.parameters():
+        fh_nul_reshape.append(fh_nul[offset:offset + param.numel()].reshape(param.shape))
+        offset += param.numel()
+
+    fh_nul = fh_nul_reshape
+
     server.load_noise_args(fh_hmul_pm, fh_nul)
 
     # Start FL training.
-    FL_train(cfg, server, clients, dataset)
+    FL_train(cfg, server, clients, dataset, alg)
 
 
 if __name__ == "__main__":
@@ -43,8 +51,8 @@ if __name__ == "__main__":
     param_size = sum(p.numel() for p in model.parameters())
     print(f"Model size: {param_size}")  # 878538
 
-    fh_hmul_pm_list = [torch.rand(cfg.m, 1, dtype=torch.complex64).to(cfg.device) for _ in range(len(alg_list))]
-    fh_nul_list = [torch.rand(param_size, dtype=torch.complex64).to(cfg.device) for _ in range(len(alg_list))]
+    fh_hmul_pm_list = [0.001 * torch.ones(cfg.m, 1, dtype=torch.complex64).to(cfg.device) for _ in range(len(alg_list))]
+    fh_nul_list = [torch.zeros(param_size, dtype=torch.complex64).to(cfg.device) for _ in range(len(alg_list))]
 
     # fh_hmul_pm_list = loadmat('param.mat')['fh_hmul_pm']
     # fh_nul_list = loadmat('param.mat')['fh_nul']

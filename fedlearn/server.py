@@ -1,7 +1,6 @@
 import copy
 import torch
 import numpy as np
-from PIL.ImageChops import offset
 from numpy.ma.core import zeros_like
 
 from utils.model import init_model
@@ -10,7 +9,7 @@ from utils.model import init_model
 class Server(object):
     """Server side operations."""
 
-    def __init__(self, cfg,alg):
+    def __init__(self, cfg, alg):
         self.cfg = cfg
         self.model = init_model(cfg)  # model z_k # 初始化服务器模型 z_k
         self.state = self.model.state_dict()  # state z_k # 保存模型参数状态 z_k
@@ -22,11 +21,11 @@ class Server(object):
         """Randomly select a subset of clients."""
         num = max(np.ceil(frac * self.cfg.m).astype(int), 1)  # number of clients to sample # 计算要选择的客户端数量，确保至少选择一个客户端
         self.active_clients = np.random.choice(range(self.cfg.m), num, replace=False)
-        return self.active_clients # 返回选择的客户端索引
+        return self.active_clients  # 返回选择的客户端索引
 
     def aggregate(self, res_clients: dict):
         """Server aggregation process."""
-        alpha = self.cfg.alpha # 每个客户端的权重
+        alpha = self.cfg.alpha  # 每个客户端的权重
         model_u = res_clients["models"]  # list of clients' models # 获取客户端的模型列表
         model_z = copy.deepcopy(model_u[0])  # init model_server_new # 初始化聚合后的服务器模型
         m = len(model_u)  # number of clients to aggregate # 要聚合的客户端数量
@@ -36,9 +35,9 @@ class Server(object):
         for i in range(m):
             for key in theta_m[i].keys():
                 theta_m[i][key] = torch.zeros_like(theta_m[i][key])
-        theta_mean , theta_std = [], []
+        theta_mean, theta_std = [], []
 
-        sigma=0.1
+        sigma = 0.1
 
         # 遍历模型的每一层，进行参数聚合
         for key in model_z.keys():
@@ -73,25 +72,19 @@ class Server(object):
             model_z = self._admm_memory(model_z)
 
         for i in range(m):
-            theta_mean .append(torch.mean(torch.cat([param.view(-1) for param in theta_m[i].values()])))
+            theta_mean.append(torch.mean(torch.cat([param.view(-1) for param in theta_m[i].values()])))
             theta_std.append(torch.std(torch.cat([param.view(-1) for param in theta_m[i].values()])))
 
-        noise=copy.deepcopy(model_z)
-
-        offset=0
-
-        for key in noise.keys():
+        noise = copy.deepcopy(model_z)
+        for idx, key in enumerate(noise.keys()):
             noise[key].zero_()
             for i in range(m):
-                noise[key] += (self.fh_hmul_pm[i].real - theta_std[i]) * (theta_m[i][key] - theta_mean[i]) / theta_std[i]
+                noise[key] += (self.fh_hmul_pm[i].real - theta_std[i]) * (theta_m[i][key] - theta_mean[i]) / theta_std[
+                    i]
 
-            # noise[key] += self.fh_nul[idx].real
-            numel = noise[key].numel()
-            noise[key] += self.fh_nul[offset:offset+numel].real.reshape(noise[key].shape)
-            offset += numel
-
+            noise[key] += self.fh_nul[idx].real
             noise[key] = torch.div(noise[key], sigma)
-            
+
         for key in model_z.keys():
             model_z[key] += noise[key]
 
@@ -100,14 +93,14 @@ class Server(object):
 
     def _admm_memory(self, model_new):
         """Server aggregation with memory."""
-        delta = self.cfg.delta # 记忆系数
+        delta = self.cfg.delta  # 记忆系数
         cof1 = 1 / (1 + delta)
         cof2 = delta / (1 + delta)
         model = copy.deepcopy(model_new)
         # 遍历模型的每一层
         for key in model.keys():  # iterate over model layers
             model[key].zero_()  # reset model parameters # 重置模型参数
-            model[key] = cof1 * model_new[key] + cof2 * self.state[key] # 带记忆的聚合：综合当前和上轮模型的参数
+            model[key] = cof1 * model_new[key] + cof2 * self.state[key]  # 带记忆的聚合：综合当前和上轮模型的参数
         return model
 
     def load_noise_args(self, fh_hmul_pm, fh_nul):

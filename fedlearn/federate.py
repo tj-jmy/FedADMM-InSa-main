@@ -6,7 +6,7 @@ from utils.dataset import DatasetSplit
 from utils.utils import *
 
 
-def FL_train(cfg, server, clients, dataset):
+def FL_train(cfg, server, clients, dataset,alg):
     """Run FL training."""
     # Initialization.
     res_dict, res_path, log = prepare(cfg, clients)  # logging system # 准备日志记录系统
@@ -31,7 +31,7 @@ def FL_train(cfg, server, clients, dataset):
             np.save(res_path, np.asarray(res_dict, dtype=object))
             # torch.save(server.model, os.path.join(dir_res, f"/0_model.pth"))  # save model
             if cfg.plot:
-                plot_res(cfg, res_path)
+                plot_res(cfg, res_path,alg)
             if loss > 200 or np.isnan(loss):  # early stop
                 log.info(f"\n# Early stop dut to the loss explosion #\n")
                 break

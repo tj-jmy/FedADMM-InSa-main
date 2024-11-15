@@ -23,7 +23,7 @@ class Server(object):
         self.active_clients = np.random.choice(range(self.cfg.m), num, replace=False)
         return self.active_clients  # 返回选择的客户端索引
 
-    def aggregate(self, res_clients: dict):
+    def aggregate(self, res_clients: dict, add_noise=False):
         """Server aggregation process."""
         alpha = self.cfg.alpha  # 每个客户端的权重
         model_u = res_clients["models"]  # list of clients' models # 获取客户端的模型列表
@@ -75,18 +75,18 @@ class Server(object):
             theta_mean.append(torch.mean(torch.cat([param.view(-1) for param in theta_m[i].values()])))
             theta_std.append(torch.std(torch.cat([param.view(-1) for param in theta_m[i].values()])))
 
-        noise = copy.deepcopy(model_z)
-        for idx, key in enumerate(noise.keys()):
-            noise[key].zero_()
-            for i in range(m):
-                noise[key] += (self.fh_hmul_pm[i].real - theta_std[i]) * (theta_m[i][key] - theta_mean[i]) / theta_std[
-                    i]
+        if add_noise:
+            noise = copy.deepcopy(model_z)
+            for idx, key in enumerate(noise.keys()):
+                noise[key].zero_()
+                for i in range(m):
+                    noise[key] += (self.fh_hmul_pm[i].real - theta_std[i]) * (theta_m[i][key] - theta_mean[i]) / \
+                                  theta_std[i]
+                noise[key] += self.fh_nul[idx].real
+                noise[key] = torch.div(noise[key], sigma)
 
-            noise[key] += self.fh_nul[idx].real
-            noise[key] = torch.div(noise[key], sigma)
-
-        for key in model_z.keys():
-            model_z[key] += noise[key]
+            for key in model_z.keys():
+                model_z[key] += noise[key]
 
         # 更新服务器的模型
         self.model.load_state_dict(model_z)  # update server's model

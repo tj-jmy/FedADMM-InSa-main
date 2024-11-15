@@ -38,7 +38,7 @@ def main(cfg, alg, fh_hmul_pm, fh_nul, times, alg_index):
         server.load_noise_args(fh_hmul_pm, fh_nul_reshape)
 
         # Start FL training.
-        res_dict = FL_train(cfg, server, clients, dataset, alg)
+        res_dict = FL_train(cfg, server, clients, dataset, add_noise=(alg_index != 0))
 
         # Save the results.
         res_dir = "results/" + alg + str(alg_index)

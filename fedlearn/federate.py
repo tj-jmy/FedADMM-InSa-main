@@ -6,7 +6,7 @@ from utils.dataset import DatasetSplit
 from utils.utils import *
 
 
-def FL_train(cfg, server, clients, dataset, alg):
+def FL_train(cfg, server, clients, dataset, add_noise=False):
     """Run FL training."""
     # Initialization.
     res_dict, res_path, log = prepare(cfg, clients)  # logging system # 准备日志记录系统
@@ -24,7 +24,7 @@ def FL_train(cfg, server, clients, dataset, alg):
         # clients' local updates # 客户端进行本地更新
         res_clients = clients.local_update(server.model, selected_clients, k)
         # server aggregation # 服务器进行聚合
-        server.aggregate(res_clients)
+        server.aggregate(res_clients, add_noise=add_noise)
         # evaluation and save results
         log.info(f" Round time: {(time.time() - round_start_time) / 60:.1f} min")
         # if k % cfg.save_freq == 0 or k in [1, cfg.K]:

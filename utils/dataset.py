@@ -18,7 +18,7 @@ def init_dataset(cfg):
         # path to download the dataset
         path = "../../dataset"
     else:  # cpu training
-        #path = r"D:\FAUBox\code\dataset"
+        # path = r"D:\FAUBox\code\dataset"
         path = "./dataset"
 
     if cfg.dataset == "mnist":
@@ -37,6 +37,12 @@ def init_dataset(cfg):
     elif cfg.dataset == "linreg":
         dataset_train = LinReg(num_data=50000, dim_data=5000)
         dataset_test = LinReg(num_data=5, dim_data=5000)
+    elif cfg.dataset == "fmnist":
+        mean, std = (0.5,), (0.5,)
+        trans = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean, std)])
+        dataset_train = datasets.FashionMNIST(path, train=True, download=True, transform=trans)
+        dataset_test = datasets.FashionMNIST(path, train=False, download=True, transform=trans)
+        cfg.num_classes = 10
     else:
         opts = ["mnist", "linreg", "cifar10"]
         raise ValueError(f"Invalid dataset. Choose from {opts}")
@@ -78,8 +84,8 @@ class LinReg(Dataset):
             b[:num_1] = t_distri.rvs(5, size=(num_1, 1))
             # uniform distribution
             num_2 = np.ceil(frac_2 * num_data).astype(int)
-            A[num_1 : num_1 + num_2, :] = np.random.uniform(-5, 5, (num_2, dim_data))
-            b[num_1 : num_1 + num_2] = np.random.uniform(-5, 5, (num_2, 1))
+            A[num_1: num_1 + num_2, :] = np.random.uniform(-5, 5, (num_2, dim_data))
+            b[num_1: num_1 + num_2] = np.random.uniform(-5, 5, (num_2, 1))
             # randomize data
             I = np.random.permutation(num_data)
             A = A[I, :]

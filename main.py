@@ -48,8 +48,8 @@ def main(cfg, alg, fh_hmul_pm, fh_nul, times, alg_index):
         scipy.io.savemat(res_path, res_dict)
 
     # Average the results.
-    loss = np.zeros((times, cfg.K))
-    accu = np.zeros((times, cfg.K))
+    loss = np.zeros((times, cfg.K + 1))
+    accu = np.zeros((times, cfg.K + 1))
 
     for i in range(times):
         res_path = "results/" + alg + str(alg_index) + "/results_" + str(i) + ".mat"
@@ -96,8 +96,8 @@ if __name__ == "__main__":
             main(cfg, alg_list[i], fh_hmul_pm_list[i], fh_nul_list[i], 5, i)
         progress.update(task, advance=1)
 
-    loss = np.zeros((len(alg_list), cfg.K))
-    accu = np.zeros((len(alg_list), cfg.K))
+    loss = np.zeros((len(alg_list), cfg.K + 1))
+    accu = np.zeros((len(alg_list), cfg.K + 1))
 
     for i in range(len(alg_list)):
         res_path = "results/" + alg_list[i] + str(i) + "/results_avg.mat"

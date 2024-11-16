@@ -38,7 +38,7 @@ def main(cfg, alg, fh_hmul_pm, fh_nul, times, alg_index):
         server.load_noise_args(fh_hmul_pm, fh_nul_reshape)
 
         # Start FL training.
-        res_dict = FL_train(cfg, server, clients, dataset, add_noise=(alg_index != 0))
+        res_dict = FL_train(cfg, server, clients, dataset, add_noise=False)
 
         # Save the results.
         res_dir = "results/" + alg + str(alg_index)
@@ -76,6 +76,8 @@ if __name__ == "__main__":
     # alg_list = ["fedavg", "admm_insa", "admm_in", "admm"]
     alg_list = ["admm", "admm", "admm", "admm"]
 
+    frac_list = [0.1, 0.2, 0.3, 0.4]
+
     model = init_model(cfg)
     param_size = sum(p.numel() for p in model.parameters())
     print(f"Model size: {param_size}")  # 878538
@@ -90,6 +92,7 @@ if __name__ == "__main__":
         task = progress.add_task("[green]Main loop:", total=1)  # main loop bar
         cfg.progress = progress  # for the sub inner loop
         for i in range(len(alg_list)):
+            cfg.frac = frac_list[i]
             main(cfg, alg_list[i], fh_hmul_pm_list[i], fh_nul_list[i], 5, i)
         progress.update(task, advance=1)
 

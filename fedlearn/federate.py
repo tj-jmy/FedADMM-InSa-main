@@ -10,22 +10,23 @@ def FL_train(cfg, server, clients, dataset, add_noise=False):
     """Run FL training."""
     # Initialization.
     res_dict, res_path, log = prepare(cfg, clients)  # logging system # 准备日志记录系统
-    # evaluate(cfg, server.model, dataset, res_dict, log)  # record initial states # 记录初始模型状态
+    evaluate(cfg, server.model, dataset, res_dict, log)  # record initial states # 记录初始模型状态
     task2 = cfg.progress.add_task("[green] Sub loop:", total=cfg.K)  # progress bar # 初始化进度条
     # Start training.
+    selected_clients = server.select_clients(frac=cfg.frac)  # 按照比例随机选择客户端
+
     log.info(f"\n-----Start training-----\n")
     train_start_time = time.time()  # 记录训练开始时间
     for k in range(1, cfg.K + 1):  # Iterate over FL training rounds.  # 遍历所有的 FL 训练轮次
         log.info(f"\nRound: {k}")
         round_start_time = time.time()  # 记录每轮开始时间
-        evaluate(cfg, server.model, dataset, res_dict, log, k)
         # server selects clients  # 服务器选择客户端，设备选择
-        selected_clients = server.select_clients(frac=cfg.frac)  # 按照比例随机选择客户端
         # clients' local updates # 客户端进行本地更新
         res_clients = clients.local_update(server.model, selected_clients, k)
         # server aggregation # 服务器进行聚合
         server.aggregate(res_clients, add_noise=add_noise)
         # evaluation and save results
+        evaluate(cfg, server.model, dataset, res_dict, log, k)
         log.info(f" Round time: {(time.time() - round_start_time) / 60:.1f} min")
         # if k % cfg.save_freq == 0 or k in [1, cfg.K]:
         #     loss = evaluate(cfg, server.model, dataset, res_dict, log, k)

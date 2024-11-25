@@ -76,13 +76,16 @@ class Server(object):
             theta_std.append(torch.std(torch.cat([param.view(-1) for param in theta_m[i].values()])))
 
         if add_noise:
+            fh_hmul_pm = 0.001 * torch.ones(m, 1, dtype=torch.complex64).to(self.cfg.device)
+            fh_nul = [torch.zeros(param.size(), dtype=torch.complex64).to(self.cfg.device) for param in
+                      model_z.values()]
             noise = copy.deepcopy(model_z)
             for idx, key in enumerate(noise.keys()):
                 noise[key].zero_()
                 for i in range(m):
-                    noise[key] += (self.fh_hmul_pm[i].real - theta_std[i]) * (theta_m[i][key] - theta_mean[i]) / \
+                    noise[key] += (fh_hmul_pm[i].real - theta_std[i]) * (theta_m[i][key] - theta_mean[i]) / \
                                   theta_std[i]
-                noise[key] += self.fh_nul[idx].real
+                noise[key] += fh_nul[idx].real
                 noise[key] = torch.div(noise[key], sigma)
 
             for key in model_z.keys():

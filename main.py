@@ -19,7 +19,7 @@ from matplotlib import pyplot as plt
 import os
 
 
-def main(cfg, alg, fh_hmul_pm, fh_nul, times, alg_index):
+def main(cfg, alg, times, alg_index):
     # Setup the random seed.
     set_seed(cfg.seed)
 
@@ -28,14 +28,6 @@ def main(cfg, alg, fh_hmul_pm, fh_nul, times, alg_index):
         dataset = init_dataset(cfg)  # Initialize datasets.
         server = Server(cfg, alg)  # Initialize the server.
         clients = Clients(cfg, server.model, dataset, alg)  # Initialize clients.
-
-        # reshape fh_nul
-        fh_nul_reshape, offset = [], 0
-        for param in server.model.parameters():
-            fh_nul_reshape.append(fh_nul[offset:offset + param.numel()].reshape(param.shape))
-            offset += param.numel()
-
-        server.load_noise_args(fh_hmul_pm, fh_nul_reshape)
 
         # Start FL training.
         res_dict = FL_train(cfg, server, clients, dataset, add_noise=alg_index != 0)
@@ -82,11 +74,6 @@ if __name__ == "__main__":
     param_size = sum(p.numel() for p in model.parameters())
     print(f"Model size: {param_size}")  # 878538
 
-    num_clients = int(cfg.m * cfg.frac)
-    fh_hmul_pm_list = [0.001 * torch.ones(num_clients, 1, dtype=torch.complex64).to(cfg.device) for _ in
-                       range(len(alg_list))]
-    fh_nul_list = [torch.zeros(param_size, dtype=torch.complex64).to(cfg.device) for _ in range(len(alg_list))]
-
     # fh_hmul_pm_list = loadmat('param.mat')['fh_hmul_pm']
     # fh_nul_list = loadmat('param.mat')['fh_nul']
 
@@ -95,7 +82,7 @@ if __name__ == "__main__":
         cfg.progress = progress  # for the sub inner loop
         for i in range(len(alg_list)):
             # cfg.frac = frac_list[i]
-            main(cfg, alg_list[i], fh_hmul_pm_list[i], fh_nul_list[i], 5, i)
+            main(cfg, alg_list[i], 5, i)
         progress.update(task, advance=1)
 
     loss = np.zeros((len(alg_list), cfg.K + 1))

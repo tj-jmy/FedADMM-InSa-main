@@ -23,8 +23,9 @@ def FL_train(cfg, server, clients, dataset, add_noise=False):
         # server selects clients  # 服务器选择客户端，设备选择
         # clients' local updates # 客户端进行本地更新
         res_clients = clients.local_update(server.model, selected_clients, k)
+        selected_res_clients = {key: [res_clients[key][i] for i in selected_clients] for key in res_clients}
         # server aggregation # 服务器进行聚合
-        server.aggregate(res_clients, add_noise=add_noise)
+        server.aggregate(selected_res_clients, add_noise=add_noise)
         # evaluation and save results
         evaluate(cfg, server.model, dataset, res_dict, log, k)
         log.info(f" Round time: {(time.time() - round_start_time) / 60:.1f} min")

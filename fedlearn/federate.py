@@ -15,6 +15,10 @@ def FL_train(cfg, server, clients, dataset, add_noise=False):
     # Start training.
     selected_clients = server.select_clients(frac=cfg.frac)  # 按照比例随机选择客户端
 
+    best_loss = 1e7
+    counter = 0
+    patience = 10
+
     log.info(f"\n-----Start training-----\n")
     train_start_time = time.time()  # 记录训练开始时间
     for k in range(1, cfg.K + 1):  # Iterate over FL training rounds.  # 遍历所有的 FL 训练轮次
@@ -27,8 +31,16 @@ def FL_train(cfg, server, clients, dataset, add_noise=False):
         # server aggregation # 服务器进行聚合
         server.aggregate(selected_res_clients, add_noise=add_noise)
         # evaluation and save results
-        evaluate(cfg, server.model, dataset, res_dict, log, k)
+        loss = evaluate(cfg, server.model, dataset, res_dict, log, k)
         log.info(f" Round time: {(time.time() - round_start_time) / 60:.1f} min")
+        if loss < best_loss:
+            best_loss = loss
+            counter = 0
+        else:
+            counter += 1
+        if counter >= patience:
+            log.info(f"\n# Early stop #\n")
+            break
         # if k % cfg.save_freq == 0 or k in [1, cfg.K]:
         #     loss = evaluate(cfg, server.model, dataset, res_dict, log, k)
         #     np.save(res_path, np.asarray(res_dict, dtype=object))
@@ -40,6 +52,11 @@ def FL_train(cfg, server, clients, dataset, add_noise=False):
         #         break
         # cfg.progress.update(task2, advance=1)  # complete one round
         # log.info(f" Total time: {(time.time() - train_start_time)/60:.1f} min\n")
+    # res_dict填充由于提前停止而未完成的轮次
+    for i in range(k + 1, cfg.K + 1):
+        res_dict["round"].append(i)
+        res_dict["loss"].append(-1)
+        res_dict["accu_test"].append(-1)
 
     cfg.progress.remove_task(task2)  # complete all rounds
     log.info(f"-----End training-----\n")

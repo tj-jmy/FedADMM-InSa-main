@@ -5,7 +5,7 @@ from fedlearn.federate import FL_train
 from fedlearn.server import Server
 from fedlearn.client import Clients
 from rich.progress import Progress
-from utils.dataset import init_dataset
+from utils.dataset import init_dataset, cal_alpha
 from utils.args import args_parser
 from utils.utils import load_config, set_seed
 
@@ -27,6 +27,8 @@ def main(cfg, alg, fh_hmul_pm, fh_nul, times, alg_index):
         # Initialize dataset, server and clients.
         dataset = init_dataset(cfg)  # Initialize datasets.
         server = Server(cfg, alg)  # Initialize the server.
+        selected_clients = server.select_clients(frac=cfg.frac)  # 按照比例随机选择客户端
+        cfg.alpha = cal_alpha(cfg, dataset, selected_clients)  # percentage of clients' datasets
         clients = Clients(cfg, server.model, dataset, alg)  # Initialize clients.
 
         # reshape fh_nul

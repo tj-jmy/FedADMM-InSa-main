@@ -13,7 +13,8 @@ def FL_train(cfg, server, clients, dataset, add_noise=False):
     evaluate(cfg, server.model, dataset, res_dict, log)  # record initial states # 记录初始模型状态
     task2 = cfg.progress.add_task("[green] Sub loop:", total=cfg.K)  # progress bar # 初始化进度条
     # Start training.
-    selected_clients = server.select_clients(frac=cfg.frac)  # 按照比例随机选择客户端
+    # selected_clients = server.select_clients(frac=cfg.frac)  # 按照比例随机选择客户端
+    selected_clients = server.active_clients
 
     best_loss = 1e7
     counter = 0

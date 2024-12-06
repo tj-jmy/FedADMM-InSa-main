@@ -53,7 +53,7 @@ def init_dataset(cfg):
     else:
         split_dict = split_noniid(dataset_train, cfg)
     dataset = {"train": dataset_train, "test": dataset_test, "split_dict": split_dict}
-    cfg.alpha = cal_alpha(cfg, dataset)  # percentage of clients' datasets
+    # cfg.alpha = cal_alpha(cfg, dataset)  # percentage of clients' datasets
     return dataset
 
 
@@ -155,12 +155,20 @@ class DatasetSplit(Dataset):
         return data, label
 
 
-def cal_alpha(cfg, dataset):
+def cal_alpha(cfg, dataset, selected_clients):
     "Calculate the percentage of each client's dataset."
     alpha = []
-    for i in range(cfg.m):
+    total_selected_num = 0
+    for i in selected_clients:
         dataset_i = DatasetSplit(dataset, i)
-        alpha_i = len(dataset_i) / len(dataset["train"])  # percentage of the client's data
+        total_selected_num += len(dataset_i)
+    for i in range(cfg.m):
+        if i not in selected_clients:
+            alpha.append(0)
+            continue
+        dataset_i = DatasetSplit(dataset, i)
+        # alpha_i = len(dataset_i) / len(dataset["train"])  # percentage of the client's data
+        alpha_i = len(dataset_i) / total_selected_num
         alpha.append(alpha_i)
     return alpha
 

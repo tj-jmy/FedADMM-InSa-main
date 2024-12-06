@@ -1,6 +1,7 @@
 import copy
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
 from numpy.ma.core import zeros_like
 
 from utils.model import init_model
@@ -20,17 +21,19 @@ class Server(object):
     def select_clients(self, frac):
         """Randomly select a subset of clients."""
         num = max(np.ceil(frac * self.cfg.m).astype(int), 1)  # number of clients to sample # 计算要选择的客户端数量，确保至少选择一个客户端
-        self.active_clients = np.random.choice(range(self.cfg.m), num, replace=False)
+        # self.active_clients = np.random.choice(range(self.cfg.m), num, replace=False)
+        self.active_clients = np.arange(num)
+        print('self.active_clients', self.active_clients)
         return self.active_clients  # 返回选择的客户端索引
 
-    def aggregate(self, res_clients: dict, add_noise=False):
+    def aggregate(self, res_clients: dict, alg_index, add_noise=False):
         """Server aggregation process."""
         alpha = self.cfg.alpha  # 每个客户端的权重
         model_u = res_clients["models"]  # list of clients' models # 获取客户端的模型列表
         model_z = copy.deepcopy(model_u[0])  # init model_server_new # 初始化聚合后的服务器模型
         m = len(model_u)  # number of clients to aggregate # 要聚合的客户端数量
         # Iterate over model layers for aggregation.
-
+        # alpha = (1 / m) * np.ones(m)
         theta_m = copy.deepcopy(model_u)
         for i in range(m):
             for key in theta_m[i].keys():
@@ -75,10 +78,51 @@ class Server(object):
             theta_mean.append(torch.mean(torch.cat([param.view(-1) for param in theta_m[i].values()])))
             theta_std.append(torch.std(torch.cat([param.view(-1) for param in theta_m[i].values()])))
 
+        theta_std = [float(tensor.item()) for tensor in theta_std]
+        print('theta_std', theta_std)
+        # 根据标准差列表计算方差列表，方差等于标准差的平方
+        theta_var = [std ** 2 for std in theta_std]
+        print('theta_var', theta_var)
         if add_noise:
-            fh_hmul_pm = 0.001 * torch.ones(m, 1, dtype=torch.complex64).to(self.cfg.device)
-            fh_nul = [torch.zeros(param.size(), dtype=torch.complex64).to(self.cfg.device) for param in
-                      model_z.values()]
+            B_t = 6000000
+            N0 = 1e-10
+            fh_nul1 = [torch.zeros(param.size(), dtype=torch.complex64).to(self.cfg.device) for param in
+                       model_z.values()]
+            import matlab.engine
+            eng = matlab.engine.start_matlab()
+            eng.cvx_setup(nargout=0)  # Run cvx_setup
+            if alg_index == 1:
+                from nr_optimization_function import nr_optimization  # 导入 nr_optimization 函数
+                obj_nr_list, elapsedTime_nr, fh_hmul_pm, f_n_up_product = nr_optimization(eng, self.cfg.param_size, m,
+                                                                                          self.cfg.Na, self.cfg.L,
+                                                                                          self.cfg.Pmax_up,
+                                                                                          self.cfg.Pmax_down,
+                                                                                          self.cfg.G, self.cfg.h_r,
+                                                                                          self.cfg.h_d, self.cfg.G_down,
+                                                                                          self.cfg.h_r_down,
+                                                                                          self.cfg.h_d_down,
+                                                                                          self.cfg.thetaini,
+                                                                                          self.cfg.pini, self.cfg.wini,
+                                                                                          theta_var, self.cfg.t_max, N0,
+                                                                                          B_t, self.cfg.n_up)
+
+            plt.plot(range(1, 21), obj_nr_list, label='Objective NR')
+            plt.xlabel('Iteration')
+            plt.ylabel('Objective Function Value')
+            plt.title('Objective Function Value vs. Iteration')
+            plt.grid(True)
+            plt.legend()
+            plt.show()
+
+            # fh_hmul_pm = 0.001 * torch.ones(m, 1, dtype=torch.complex64).to(self.cfg.device)
+            fh_nul = []
+            start_index = 0
+            for param in fh_nul1:
+                length = param.numel()  # 获取参数的元素数量
+                fh_nul.append(f_n_up_product[:, start_index:start_index + length].reshape(param.size()).clone())
+                start_index += length
+            print(fh_nul)
+
             noise = copy.deepcopy(model_z)
             for idx, key in enumerate(noise.keys()):
                 noise[key].zero_()
@@ -87,9 +131,11 @@ class Server(object):
                                   theta_std[i]
                 noise[key] += fh_nul[idx].real
                 noise[key] = torch.div(noise[key], sigma)
-
+            print('model_z', model_z)
+            print('noise', noise)
             for key in model_z.keys():
                 model_z[key] += noise[key]
+            print('model_z', model_z)
 
         # 更新服务器的模型
         self.model.load_state_dict(model_z)  # update server's model

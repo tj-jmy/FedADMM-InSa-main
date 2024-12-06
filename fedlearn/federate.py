@@ -6,14 +6,14 @@ from utils.dataset import DatasetSplit
 from utils.utils import *
 
 
-def FL_train(cfg, server, clients, dataset, add_noise=False):
+def FL_train(cfg, server, clients, dataset, alg_index, add_noise=False):
     """Run FL training."""
     # Initialization.
     res_dict, res_path, log = prepare(cfg, clients)  # logging system # 准备日志记录系统
     evaluate(cfg, server.model, dataset, res_dict, log)  # record initial states # 记录初始模型状态
     task2 = cfg.progress.add_task("[green] Sub loop:", total=cfg.K)  # progress bar # 初始化进度条
     # Start training.
-    selected_clients = server.select_clients(frac=cfg.frac)  # 按照比例随机选择客户端
+    selected_clients = server.active_clients
 
     log.info(f"\n-----Start training-----\n")
     train_start_time = time.time()  # 记录训练开始时间
@@ -25,7 +25,7 @@ def FL_train(cfg, server, clients, dataset, add_noise=False):
         res_clients = clients.local_update(server.model, selected_clients, k)
         selected_res_clients = {key: [res_clients[key][i] for i in selected_clients] for key in res_clients}
         # server aggregation # 服务器进行聚合
-        server.aggregate(selected_res_clients, add_noise=add_noise)
+        server.aggregate(selected_res_clients, alg_index, add_noise=add_noise)
         # evaluation and save results
         evaluate(cfg, server.model, dataset, res_dict, log, k)
         log.info(f" Round time: {(time.time() - round_start_time) / 60:.1f} min")
